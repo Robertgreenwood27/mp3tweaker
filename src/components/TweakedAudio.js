@@ -1,11 +1,15 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useStore } from '../store';
 import { usePitch, applyPitchToSource } from '../pitch';
+import { useReverb, applyReverbToSource } from '../reverb';
+import { useVolume, applyVolumeToSource } from '../volume';
 import { createAudioSource, applyAudioProcessing, processEntireAudio, audioBufferToWav } from '../audioProcessing';
 
 export default function TweakedAudio() {
   const { file } = useStore();
   const { pitch } = usePitch();
+  const { reverbAmount } = useReverb();
+  const { volume } = useVolume();
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -42,17 +46,19 @@ export default function TweakedAudio() {
     if (isPlaying) {
       playAudio(currentTime);
     }
-  }, [pitch]);
+  }, [pitch, reverbAmount, volume]);
 
   const setupAudio = async (startTime = 0) => {
     if (sourceNodeRef.current) {
       sourceNodeRef.current.disconnect();
     }
     sourceNodeRef.current = createAudioSource(audioContextRef.current, audioBufferRef.current);
-    applyAudioProcessing(sourceNodeRef.current, [
-      (source) => applyPitchToSource(source, pitch)
+    const processedSource = applyAudioProcessing(audioContextRef.current, sourceNodeRef.current, [
+      (ctx, src) => [applyPitchToSource(src, pitch)],
+      (ctx, src) => applyReverbToSource(ctx, src, reverbAmount),
+      (ctx, src) => applyVolumeToSource(ctx, src, volume)
     ]);
-    sourceNodeRef.current.connect(gainNodeRef.current);
+    processedSource.connect(gainNodeRef.current);
     return sourceNodeRef.current;
   };
 
@@ -107,10 +113,15 @@ export default function TweakedAudio() {
     setIsProcessing(true);
     try {
       const renderedBuffer = await processEntireAudio(audioBufferRef.current, [
-        (source) => applyPitchToSource(source, pitch)
+        (ctx, src) => [applyPitchToSource(src, pitch)],
+        (ctx, src) => applyReverbToSource(ctx, src, reverbAmount),
+        (ctx, src) => applyVolumeToSource(ctx, src, volume)
       ]);
       
+      // Convert AudioBuffer to WAV
       const wavBlob = audioBufferToWav(renderedBuffer);
+      
+      // Create download URL
       const url = URL.createObjectURL(wavBlob);
       setProcessedAudioUrl(url);
     } catch (error) {

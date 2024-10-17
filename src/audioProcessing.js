@@ -1,4 +1,5 @@
 import { applyPitchToSource } from './pitch';
+import { applyReverbToSource } from './reverb';
 
 export const createAudioSource = (audioContext, audioBuffer) => {
   const source = audioContext.createBufferSource();
@@ -6,8 +7,13 @@ export const createAudioSource = (audioContext, audioBuffer) => {
   return source;
 };
 
-export const applyAudioProcessing = (source, processingFunctions) => {
-  processingFunctions.forEach(func => func(source));
+export const applyAudioProcessing = (audioContext, source, processingFunctions) => {
+  let currentNode = source;
+  processingFunctions.forEach(func => {
+    const [newNode, ...additionalNodes] = func(audioContext, currentNode);
+    currentNode = newNode || currentNode;
+  });
+  return currentNode;
 };
 
 export const processEntireAudio = async (audioBuffer, processingFunctions) => {
@@ -18,9 +24,9 @@ export const processEntireAudio = async (audioBuffer, processingFunctions) => {
   );
   
   const source = createAudioSource(offlineAudioContext, audioBuffer);
-  applyAudioProcessing(source, processingFunctions);
+  const processedSource = applyAudioProcessing(offlineAudioContext, source, processingFunctions);
   
-  source.connect(offlineAudioContext.destination);
+  processedSource.connect(offlineAudioContext.destination);
   source.start();
   
   return await offlineAudioContext.startRendering();
