@@ -4,6 +4,7 @@ import { usePitch, applyPitchToSource } from '../pitch';
 import { useReverb, applyReverbToSource } from '../reverb';
 import { useVolume, applyVolumeToSource } from '../volume';
 import { createAudioSource, applyAudioProcessing, processEntireAudio, audioBufferToWav } from '../audioProcessing';
+import WaveformVisualizer from './WaveformVisualizer';
 
 export default function TweakedAudio() {
   const { file } = useStore();
@@ -20,7 +21,6 @@ export default function TweakedAudio() {
   const gainNodeRef = useRef(null);
   const audioBufferRef = useRef(null);
   const startTimeRef = useRef(0);
-  const pauseTimeRef = useRef(0);
 
   useEffect(() => {
     if (file) {
@@ -78,10 +78,9 @@ export default function TweakedAudio() {
     if (audioContextRef.current && audioBufferRef.current) {
       if (isPlaying) {
         sourceNodeRef.current.stop();
-        pauseTimeRef.current = audioContextRef.current.currentTime - startTimeRef.current;
         setIsPlaying(false);
       } else {
-        playAudio(pauseTimeRef.current);
+        playAudio(currentTime);
       }
     }
   };
@@ -99,13 +98,15 @@ export default function TweakedAudio() {
     return () => cancelAnimationFrame(animationFrameId);
   }, [isPlaying]);
 
-  const handleSliderChange = (e) => {
-    const newTime = parseFloat(e.target.value);
-    setCurrentTime(newTime);
-    pauseTimeRef.current = newTime;
+  const handleSeek = (seekTime) => {
     if (isPlaying) {
       sourceNodeRef.current.stop();
-      playAudio(newTime);
+    }
+    setCurrentTime(seekTime);
+    if (isPlaying) {
+      playAudio(seekTime);
+    } else {
+      startTimeRef.current = audioContextRef.current.currentTime - seekTime;
     }
   };
 
@@ -118,10 +119,7 @@ export default function TweakedAudio() {
         (ctx, src) => applyVolumeToSource(ctx, src, volume)
       ]);
       
-      // Convert AudioBuffer to WAV
       const wavBlob = audioBufferToWav(renderedBuffer);
-      
-      // Create download URL
       const url = URL.createObjectURL(wavBlob);
       setProcessedAudioUrl(url);
     } catch (error) {
@@ -149,51 +147,44 @@ export default function TweakedAudio() {
   };
 
   return (
-    <div className="w-full max-w-4xl mb-8 flex flex-wrap">
-      <div className="w-full p-4 bg-zinc-800 rounded-lg">
-        <h2 className="text-zinc-100 text-lg font-semibold mb-4">Tweaked Audio</h2>
-        {file ? (
-          <>
-            <div className="flex items-center justify-between mb-2">
-              <button
-                onClick={togglePlayPause}
-                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
-              >
-                {isPlaying ? 'Pause' : 'Play'}
-              </button>
-              <span className="text-zinc-300">
-                {formatTime(currentTime)} / {formatTime(duration)}
-              </span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max={duration}
-              value={currentTime}
-              onChange={handleSliderChange}
-              className="w-full mb-4"
-            />
-            <div className="flex justify-between">
-              <button
-                onClick={processAudio}
-                disabled={isProcessing}
-                className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
-              >
-                {isProcessing ? 'Processing...' : 'Process Audio'}
-              </button>
-              {processedAudioUrl && (
-                <button
-                  onClick={downloadProcessedAudio}
-                  className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
-                >
-                  Download Tweaked Audio
-                </button>
-              )}
-            </div>
-          </>
-        ) : (
-          <p className="text-zinc-400 text-center">Upload an MP3 to tweak and play</p>
-        )}
+    <div className="bg-zinc-800 p-4 rounded-lg">
+      <h2 className="text-xl font-semibold text-zinc-100 mb-2">Tweaked Audio</h2>
+      <WaveformVisualizer 
+        currentTime={currentTime}
+        duration={duration}
+        isPlaying={isPlaying}
+        onSeek={handleSeek}
+      />
+      <div className="flex items-center justify-between mt-4">
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={togglePlayPause}
+            className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded text-sm"
+            disabled={!file}
+          >
+            {isPlaying ? 'Pause' : 'Play'}
+          </button>
+          <span className="text-zinc-300 text-sm">
+            {formatTime(currentTime)} / {formatTime(duration)}
+          </span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={processAudio}
+            disabled={isProcessing || !file}
+            className="bg-green-500 hover:bg-green-600 text-white font-bold py-1 px-2 rounded text-sm disabled:opacity-50"
+          >
+            {isProcessing ? 'Processing...' : 'Process'}
+          </button>
+          {processedAudioUrl && (
+            <button
+              onClick={downloadProcessedAudio}
+              className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded text-sm"
+            >
+              Download
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -4,9 +4,7 @@ import { useStore } from '../store';
 export default function OriginalAudioPlayer() {
   const { file, setFile } = useStore();
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [dragActive, setDragActive] = useState(false);
   const audioRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -31,29 +29,16 @@ export default function OriginalAudioPlayer() {
     }
   };
 
-  const handleTimeUpdate = () => {
-    setCurrentTime(audioRef.current.currentTime);
-  };
-
-  const handleSliderChange = (e) => {
-    const time = parseFloat(e.target.value);
-    setCurrentTime(time);
-    audioRef.current.currentTime = time;
-  };
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (audio) {
-      audio.addEventListener('timeupdate', handleTimeUpdate);
-      audio.addEventListener('ended', () => setIsPlaying(false));
-    }
-    return () => {
-      if (audio) {
-        audio.removeEventListener('timeupdate', handleTimeUpdate);
-        audio.removeEventListener('ended', () => setIsPlaying(false));
+  const handleFileInput = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+      if (selectedFile.type === "audio/mpeg") {
+        setFile(selectedFile);
+      } else {
+        alert("Please select an MP3 file.");
       }
-    };
-  }, []);
+    }
+  };
 
   const formatTime = (time) => {
     const minutes = Math.floor(time / 60);
@@ -61,98 +46,38 @@ export default function OriginalAudioPlayer() {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const handleDrag = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleFileInput = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      handleFile(e.target.files[0]);
-    }
-  };
-
-  const handleFile = (file) => {
-    if (file.type === "audio/mpeg") {
-      setFile(file);
-    } else {
-      alert("Please select an MP3 file.");
-    }
-  };
-
-  const triggerFileInput = () => {
-    fileInputRef.current.click();
-  };
-
   return (
-    <div className="w-full max-w-4xl mb-8 flex flex-wrap">
-      <div
-        className={`w-full p-4 rounded-lg border-2 border-dashed transition-colors ${
-          dragActive ? 'border-blue-500 bg-zinc-800' : 'border-zinc-700 bg-zinc-800'
-        }`}
-        onDragEnter={handleDrag}
-        onDragLeave={handleDrag}
-        onDragOver={handleDrag}
-        onDrop={handleDrop}
-      >
-        <h2 className="text-zinc-100 text-lg font-semibold mb-4">Upload MP3</h2>
-        <div className="flex flex-col items-center">
-          <p className="text-zinc-400 text-center mb-4">
-            {file ? file.name : "Drag and drop an MP3 file here or click the button below"}
-          </p>
-          <button
-            onClick={triggerFileInput}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
-          >
-            Browse Files
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="audio/mpeg"
-            onChange={handleFileInput}
-            className="hidden"
-          />
+    <header className="bg-zinc-800 p-2">
+      <div className="max-w-6xl mx-auto flex items-center justify-between">
+        <h1 className="text-xl font-bold text-zinc-100">MP3 Tweaker</h1>
+        <div className="flex items-center space-x-2">
+          {file ? (
+            <>
+              <span className="text-zinc-300 text-sm truncate max-w-xs">{file.name}</span>
+              <button
+                onClick={togglePlayPause}
+                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded text-sm"
+              >
+                {isPlaying ? 'Pause' : 'Play'}
+              </button>
+              <span className="text-zinc-300 text-sm">
+                {formatTime(duration)}
+              </span>
+            </>
+          ) : (
+            <label className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded text-sm">
+              Upload MP3
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/mpeg"
+                onChange={handleFileInput}
+                className="hidden"
+              />
+            </label>
+          )}
         </div>
       </div>
-      {file && (
-        <div className="w-full mt-4 p-4 bg-zinc-800 rounded-lg">
-          <h2 className="text-zinc-100 text-lg font-semibold mb-4">Playback Controls</h2>
-          <div className="flex items-center justify-between mb-2">
-            <button
-              onClick={togglePlayPause}
-              className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
-            >
-              {isPlaying ? 'Pause' : 'Play'}
-            </button>
-            <span className="text-zinc-300">
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max={duration}
-            value={currentTime}
-            onChange={handleSliderChange}
-            className="w-full"
-          />
-        </div>
-      )}
-    </div>
+    </header>
   );
 }

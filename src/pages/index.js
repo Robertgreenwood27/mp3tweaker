@@ -7,10 +7,18 @@ export default function Home() {
   const { file } = useStore();
 
   return (
-    <div className="min-h-screen bg-zinc-900 flex flex-col items-center justify-start p-4">
+    <div className="h-screen bg-zinc-900 flex flex-col">
       <OriginalAudioPlayer />
-      <Tweakers />
-      <TweakedAudio />
+      <main className="flex-1 flex p-4 overflow-hidden">
+        <div className="w-full max-w-6xl mx-auto flex gap-4">
+          <div className="w-1/3">
+            <Tweakers />
+          </div>
+          <div className="w-2/3 flex flex-col">
+            <TweakedAudio />
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
