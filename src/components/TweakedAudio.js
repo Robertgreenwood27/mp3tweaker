@@ -20,6 +20,7 @@ export default function TweakedAudio() {
   const sourceNodeRef = useRef(null);
   const gainNodeRef = useRef(null);
   const audioBufferRef = useRef(null);
+  const analyserRef = useRef(null);
   const startTimeRef = useRef(0);
 
   useEffect(() => {
@@ -31,7 +32,10 @@ export default function TweakedAudio() {
         audioBufferRef.current = await audioContextRef.current.decodeAudioData(arrayBuffer);
         setDuration(audioBufferRef.current.duration);
         gainNodeRef.current = audioContextRef.current.createGain();
-        gainNodeRef.current.connect(audioContextRef.current.destination);
+        analyserRef.current = audioContextRef.current.createAnalyser();
+        analyserRef.current.fftSize = 2048;
+        gainNodeRef.current.connect(analyserRef.current);
+        analyserRef.current.connect(audioContextRef.current.destination);
       };
       reader.readAsArrayBuffer(file);
     }
@@ -58,6 +62,7 @@ export default function TweakedAudio() {
       (ctx, src) => applyReverbToSource(ctx, src, reverbAmount),
       (ctx, src) => applyVolumeToSource(ctx, src, volume)
     ]);
+    
     processedSource.connect(gainNodeRef.current);
     return sourceNodeRef.current;
   };
@@ -154,6 +159,8 @@ export default function TweakedAudio() {
         duration={duration}
         isPlaying={isPlaying}
         onSeek={handleSeek}
+        audioContext={audioContextRef.current}
+        analyser={analyserRef.current}
       />
       <div className="flex items-center justify-between mt-4">
         <div className="flex items-center space-x-2">
